@@ -1,0 +1,12 @@
+[project]
+name = "flotion-backend"
+version = "0.1.0"
+description = "Flotion — a simplified Notion clone API (FastAPI + SQLite)"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+]
+
+[tool.uv]
+# uv auto-manages the virtualenv. Run with:  uv run uvicorn main:app --reload

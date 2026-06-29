@@ -1,0 +1,7 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "uv run .claude/status_lines/context_bar.py",
+    "padding": 0
+  }
+}

@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orchestrate Agents</title>
+<link rel="icon" type="image/svg+xml" href="images/favicon.svg">
+<link rel="apple-touch-icon" href="images/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0C10; --bg-soft:#0E1116; --surface:#12161C; --surface-2:#161B22;
+    --border:#232A33; --border-bright:#313B47;
+    --text:#F4F7FB; --muted:#F4F7FB; --faint:#E2E7EE;   /* all body text reads white */
+    --accent:#FFD24A;                 /* the ONE accent — yellow/gold emphasis */
+    --accent-dim:#9C7A1E;
+    --accent-glow:rgba(255,210,74,.16);
+    --accent-2:#F2B45A;               /* secondary/semantic — amber (beta/alert) */
+    --accent-2-dim:rgba(242,180,90,.14);
+    --maxw:1225px;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --disp:'Space Grotesk','Inter',system-ui,sans-serif;
+    --body:'Inter',-apple-system,system-ui,'Segoe UI',sans-serif;
+  }
+  /* For a LIGHT theme, also flip shadows/fades: search "DARK-ONLY". */
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    color:var(--text); font-family:var(--body);
+    font-size:19px; line-height:1.7; -webkit-font-smoothing:antialiased;
+    background-color:var(--bg);
+    /* fixed hero photo under a dark fade veil so text stays readable; subtle accent glow on top */
+    background-image:
+      radial-gradient(900px 500px at 78% -8%, var(--accent-glow), transparent 60%),
+      linear-gradient(rgba(8,10,14,.76), rgba(8,10,14,.81)),
+      url("images/bg.webp");
+    background-position:78% -8%, center, center top;
+    background-size:auto, cover, cover;
+    background-repeat:no-repeat, no-repeat, no-repeat;
+    background-attachment:fixed, fixed, fixed;
+  }
+  ::selection{background:var(--accent);color:var(--bg)}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---- top nav ---- */
+  .topbar{position:sticky;top:0;z-index:50;backdrop-filter:blur(11px);
+    background:color-mix(in srgb, var(--bg) 78%, transparent);border-bottom:1px solid var(--border)}
+  .topbar .inner{max-width:1180px;margin:0 auto;padding:11px 26px;display:flex;align-items:center;gap:20px}
+  .brand{font-family:var(--mono);font-size:12.5px;letter-spacing:.16em;color:var(--text);white-space:nowrap;font-weight:700}
+  .brand b{color:var(--accent)}
+  .navlinks{display:flex;gap:17px;flex-wrap:wrap;margin-left:auto}
+  .navlinks a{font-family:var(--mono);font-size:11.5px;letter-spacing:.07em;color:var(--muted);text-transform:uppercase}
+  .navlinks a:hover{color:var(--accent);text-decoration:none}
+  @media(max-width:860px){.navlinks{display:none}}
+
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 26px}
+
+  /* ---- hero (centered, contained image — no overlay) ---- */
+  .hero{border-bottom:1px solid var(--border);padding:48px 0 64px;text-align:center}
+  .hero-copy{display:flex;flex-direction:column;align-items:center}
+  .eyebrow{font-family:var(--mono);font-size:12.5px;letter-spacing:.26em;color:var(--accent);text-transform:uppercase;font-weight:500}
+  .hero h1{font-family:var(--disp);font-weight:700;line-height:1.06;letter-spacing:-.012em;text-transform:uppercase;
+    font-size:clamp(32px,6vw,68px);margin:0 auto 44px;max-width:30ch}
+  .hero-figure{margin-top:14px}
+  .hero h1 .gc{color:var(--accent)}
+  .hero .lede{font-size:clamp(17px,2.3vw,22px);color:var(--muted);opacity:1;max-width:54ch;margin:0 auto;font-weight:500}
+  .hero .lede strong{color:var(--accent);font-weight:700}
+  .hero-bullets{list-style:none;margin:8px auto 0;padding:0;display:inline-block;text-align:left}
+  .hero-bullets li{position:relative;padding-left:30px;margin:12px 0;font-size:clamp(17px,2.1vw,22px);
+    color:var(--muted);font-weight:500;line-height:1.35}
+  .hero-bullets li::before{content:"";position:absolute;left:5px;top:.58em;width:9px;height:9px;border-radius:2px;
+    background:var(--accent);transform:rotate(45deg)}
+  .hero-bullets li strong{color:var(--accent);font-weight:700}
+  .hero-img{display:block;margin:0 auto;width:min(100%,920px);height:auto;border-radius:16px;
+    border:1px solid var(--border);box-shadow:0 28px 90px rgba(0,0,0,.55);filter:saturate(1.05) contrast(1.04)}
+  /* animated orchestration diagram — transparent, no photo frame */
+  .hero-svg{display:block;margin:44px auto 0;width:min(100%,1040px);height:auto}
+  /* agent "panes" — the agents cmux drives, framed like cmux surfaces */
+  .agent-panes{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin:34px auto 0}
+  .agent-pane:nth-child(2){order:3}   /* Codex moves right */
+  .agent-pane:nth-child(3){order:2}   /* pi moves to center */
+  .agent-pane{width:158px;background:var(--surface);border:1px solid var(--border);border-radius:13px;
+    overflow:hidden;box-shadow:0 18px 50px -28px rgba(0,0,0,.85)}
+  .agent-pane .bar{display:flex;gap:6px;align-items:center;padding:9px 12px;background:var(--surface-2);border-bottom:1px solid var(--border)}
+  .agent-pane .bar .dot{width:8px;height:8px;border-radius:50%;background:var(--faint);opacity:.45}
+  .agent-pane .body{display:flex;flex-direction:column;align-items:center;gap:12px;padding:22px 14px 20px}
+  .agent-pane svg{width:36px;height:36px}
+  .agent-pane .pi{font-family:var(--disp);font-size:38px;font-weight:700;line-height:.9;color:var(--accent)}
+  .agent-pane .name{font-family:var(--mono);font-size:12px;letter-spacing:.07em;color:var(--text);text-transform:uppercase}
+
+  /* ---- COMPONENT: metastrip (hero cards) ---- */
+  .metastrip{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--border);
+    border-radius:14px;overflow:hidden;margin:34px 0 8px;background:var(--surface)}
+  .metastrip div{padding:18px 20px;border-right:1px solid var(--border)}
+  .metastrip div:last-child{border-right:none}
+  .metastrip .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;color:var(--faint);text-transform:uppercase}
+  .metastrip .v{font-family:var(--disp);font-size:21px;font-weight:600;color:var(--text);margin-top:5px;line-height:1.15}
+  .metastrip .v.cy{color:var(--accent)}
+  @media(max-width:760px){.metastrip{grid-template-columns:repeat(2,1fr)}.metastrip div:nth-child(2){border-right:none}}
+
+  /* ---- COMPONENT: table of contents ---- */
+  .toc{border:1px solid var(--border);border-radius:14px;background:var(--surface);padding:24px 26px 14px;margin:34px 0 8px}
+  .toc-h{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+  .toc ol{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:2px 26px}
+  @media(max-width:760px){.toc ol{grid-template-columns:1fr}}
+  .toc a{display:block;padding:10px 10px;border-radius:9px;border:1px solid transparent}
+  .toc a:hover{background:var(--accent-glow);border-color:var(--border);text-decoration:none}
+  .toc .trow{display:flex;align-items:baseline;gap:11px}
+  .toc .tnum{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent)}
+  .toc .tt{font-family:var(--disp);font-weight:600;font-size:15.5px;color:var(--text);letter-spacing:-.005em}
+  .toc .td{display:block;font-size:12.5px;color:var(--muted);margin:3px 0 0 23px;line-height:1.42}
+
+  /* ---- sections ---- */
+  section{padding:104px 0 24px;border-top:1px solid var(--border)}
+  section:first-of-type{border-top:none}
+  .sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:8px}
+  .sec-num{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:700;letter-spacing:.05em}
+  h2{font-family:var(--disp);font-weight:700;letter-spacing:-.01em;font-size:clamp(30px,4vw,46px);line-height:1.08}
+  h3{font-family:var(--disp);font-weight:600;font-size:24px;margin:32px 0 10px;letter-spacing:-.005em}
+  .sub{color:var(--muted);font-size:20.5px;max-width:74ch;margin:16px 0 8px;line-height:1.6}
+  p{margin:15px 0;color:var(--text);opacity:.92}
+  p .hl{opacity:1;font-weight:600}
+  strong{color:var(--text);font-weight:600}
+  .lead-rule{height:2px;width:64px;background:linear-gradient(90deg,var(--accent),transparent);margin:18px 0 6px;border-radius:2px}
+
+  /* ---- COMPONENT: figure (ONE per section) ---- */
+  figure{margin:38px 0}
+  /* ---- COMPONENT: subpoints (lead-in bullet list) ---- */
+  .subpoints{list-style:none;margin:18px 0 8px;padding:0;max-width:76ch}
+  .subpoints li{position:relative;padding-left:26px;margin:13px 0;color:var(--muted);font-size:18px;line-height:1.58}
+  .subpoints li::before{content:"";position:absolute;left:3px;top:9px;width:7px;height:7px;border-radius:2px;
+    background:var(--accent);transform:rotate(45deg)}
+  .subpoints li b,.subpoints li strong{color:var(--text);font-weight:600}
+  .subpoints li code{font-size:.86em}
+  figure img{width:100%;display:block;border:1px solid var(--border-bright);border-radius:14px;
+    box-shadow:0 18px 50px -24px rgba(0,0,0,.8), 0 0 0 1px var(--accent-glow)} /* DARK-ONLY shadow */
+  figure.tall img{max-width:430px;margin:0 auto}
+  figcaption{font-family:var(--mono);font-size:12px;color:var(--faint);text-align:center;margin-top:11px;letter-spacing:.04em}
+
+  /* ---- COMPONENT: card grids ---- */
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:24px 0}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0}
+  @media(max-width:760px){.grid-2,.grid-3{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px}
+  .card h4{font-family:var(--disp);font-size:17px;font-weight:600;margin-bottom:7px;color:var(--text)}
+  .card p{font-size:16.5px;margin:7px 0 0;color:var(--muted);opacity:1}
+  .card .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--accent);text-transform:uppercase}
+
+  /* ---- COMPONENT: stat trio ---- */
+  .stat{background:linear-gradient(180deg,var(--surface-2),var(--surface));border:1px solid var(--border);
+    border-radius:14px;padding:24px 22px;position:relative;overflow:hidden}
+  .stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
+  .stat .big{font-family:var(--disp);font-weight:700;font-size:38px;line-height:1;color:var(--accent);letter-spacing:-.02em}
+  .stat .lbl{color:var(--muted);font-size:14.5px;margin-top:9px}
+
+  /* ---- COMPONENT: phase / step blocks ---- */
+  .phase{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);
+    border-radius:12px;padding:24px 26px;margin:18px 0;position:relative}
+  .phase.dim{border-left-color:var(--faint)}
+  .phase.focus{box-shadow:0 0 0 1px var(--accent-glow),0 16px 44px -28px var(--accent-glow)}
+  .phase.alt{border-left-color:var(--accent-2)}
+  .phase .ptop{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+  .phase .pno{font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--accent);font-weight:700}
+  .phase.alt .pno{color:var(--accent-2)}
+  .phase h3{margin:0;font-size:22px}
+  .phase .when{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-left:auto;letter-spacing:.04em}
+  .phase .goal{color:var(--text);opacity:.92;font-size:16px;margin:8px 0 14px}
+  .pfields{display:grid;grid-template-columns:repeat(2,1fr);gap:13px 26px;margin-top:6px}
+  @media(max-width:680px){.pfields{grid-template-columns:1fr}}
+  .pfield .fl{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--faint);text-transform:uppercase;margin-bottom:3px}
+  .pfield .fv{font-size:14.5px;color:var(--text)}
+  .pfield .fv b{color:var(--accent);font-weight:600}
+  .ptag{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;
+    background:var(--accent-glow);border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);color:var(--accent);
+    padding:2px 9px;border-radius:999px;text-transform:uppercase}
+
+  /* ---- COMPONENT: numbered "lever" rows ---- */
+  .lever{display:flex;gap:16px;padding:16px 0;border-bottom:1px solid var(--border)}
+  .lever:last-child{border-bottom:none}
+  .lever .ln{font-family:var(--disp);font-size:34px;font-weight:700;color:var(--border-bright);line-height:1;min-width:42px}
+  .lever .lt{font-family:var(--disp);font-size:17px;font-weight:600;color:var(--text)}
+  .lever .ld{font-size:14.5px;color:var(--muted);margin-top:3px}
+  .lever .ld .arrow{color:var(--accent);font-weight:600}
+
+  /* ---- COMPONENT: problem -> solution flow rows ---- */
+  .flow{display:grid;gap:18px;margin:32px 0 10px}
+  .flow-item{display:grid;grid-template-columns:60px 1fr;background:var(--surface);
+    border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:border-color .15s ease}
+  .flow-item:hover{border-color:var(--border-bright)}
+  .flow-rail{display:flex;align-items:center;justify-content:center;background:var(--bg-soft);
+    border-right:1px solid var(--border);font-family:var(--disp);font-size:28px;font-weight:700;color:var(--border-bright)}
+  .flow-grid{display:grid;grid-template-columns:1fr 52px 1.18fr;align-items:stretch}
+  .flow-cell{padding:24px 26px}
+  .flow-k{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:10px}
+  .flow-prob .flow-k{color:var(--accent-2)}
+  .flow-sol .flow-k{color:#4FE3A3}                                   /* green — revealed answer */
+  .flow-h{font-family:var(--disp);font-size:20px;font-weight:600;color:var(--text);line-height:1.22;margin-bottom:7px}
+  .flow-sol .flow-h{color:#4FE3A3}                                   /* green — revealed answer */
+  .flow-p{font-size:16.5px;color:var(--muted);line-height:1.52}
+  .flow-arrow{display:flex;align-items:center;justify-content:center;color:var(--accent-2);font-size:26px;
+    background:var(--bg-soft);border-left:1px solid var(--border);border-right:1px solid var(--border)}
+  .flow-arrow::before{content:"?";font-weight:700}                 /* yellow question by default */
+  .flow-item.flipped .flow-arrow{color:#4FE3A3}                    /* green once answered */
+  .flow-item.flipped .flow-arrow::before{content:"\279E";font-weight:400}
+  .flow-sol{background:linear-gradient(180deg,var(--accent-2-dim),transparent 72%)}        /* amber while asking */
+  .flow-item.flipped .flow-sol{background:linear-gradient(180deg,rgba(79,227,163,.16),transparent 72%)} /* green answer */
+  .flow-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .flow-chip{font-family:var(--mono);font-size:12.5px;color:#4FE3A3;background:var(--surface);
+    border:1px solid color-mix(in srgb,#4FE3A3 38%,transparent);padding:4px 12px;border-radius:20px}
+  @media(max-width:760px){
+    .flow-item{grid-template-columns:1fr}
+    .flow-rail{flex-direction:row;justify-content:flex-start;padding:10px 22px;border-right:none;border-bottom:1px solid var(--border);font-size:20px}
+    .flow-grid{grid-template-columns:1fr}
+    .flow-arrow{padding:6px;border:none;border-top:1px solid var(--border);border-bottom:1px solid var(--border);transform:rotate(90deg)}
+  }
+
+  /* ---- COMPONENT: flip card (problem-row solution reveal) ----
+     Front = yellow "Can Cmux Solve This?" question. Flip (per row, via
+     .flow-item.flipped) reveals the green answer and turns the center mark
+     from a yellow "?" into the green arrow. */
+  .flow-sol.flip-cell{padding:0}                 /* the faces own the padding now */
+  .flip{perspective:1200px}
+  .flip-inner{display:grid;transition:transform .55s cubic-bezier(.2,.75,.25,1);transform-style:preserve-3d}
+  .flow-item.flipped .flip-inner{transform:rotateY(180deg)}
+  .flip-front,.flip-back{grid-area:1/1;backface-visibility:hidden;-webkit-backface-visibility:hidden;padding:24px 26px}
+  /* FRONT — the yellow question face */
+  .flip-front{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:14px;
+    min-height:158px;width:100%;border:0;background:transparent;text-align:left;font:inherit;color:inherit;cursor:pointer}
+  .flip-q{font-family:var(--disp);font-weight:700;font-size:21px;color:var(--accent-2);letter-spacing:-.01em;line-height:1.22}
+  .flip-front:hover .flip-q{color:var(--text)}
+  .flip-cta{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-2);
+    background:var(--accent-2-dim);border:1px solid color-mix(in srgb,var(--accent-2) 42%,transparent);
+    padding:8px 15px;border-radius:999px;transition:all .15s ease}
+  .flip-front:hover .flip-cta{background:var(--accent-2);color:var(--bg);border-color:var(--accent-2)}
+  /* BACK — the green answer face (original solution content) */
+  .flip-back{transform:rotateY(180deg);position:relative}
+  .flip-reset{position:absolute;top:12px;right:14px;font-family:var(--mono);font-size:13px;line-height:1;color:var(--faint);
+    background:transparent;border:1px solid var(--border);border-radius:7px;padding:5px 9px;cursor:pointer;transition:all .15s ease}
+  .flip-reset:hover{color:var(--accent);border-color:var(--accent)}
+  @media print{ /* PDFs show the answer, not the button */
+    .flip-inner{transform:none !important}
+    .flip-front{display:none !important}
+    .flip-back{transform:none !important;position:static !important;-webkit-backface-visibility:visible !important;backface-visibility:visible !important}
+    .flip-reset{display:none !important}
+  }
+
+  /* ---- COMPONENT: callout & pull-quote ---- */
+  .callout{background:var(--bg-soft);border:1px solid var(--border);border-left:3px solid var(--accent);
+    border-radius:0 12px 12px 0;padding:18px 22px;margin:34px 0 22px}
+  .callout.alt{border-left-color:var(--accent-2)}
+  .callout .ct{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:7px}
+  .callout.alt .ct{color:var(--accent-2)}
+  .callout p{margin:5px 0;font-size:17px}
+  .pquote{font-family:var(--disp);font-weight:500;font-size:clamp(20px,2.8vw,27px);line-height:1.32;
+    color:var(--text);border-left:3px solid var(--accent);padding:6px 0 6px 22px;margin:30px 0;letter-spacing:-.01em}
+  .pquote .src{display:block;font-family:var(--mono);font-size:12px;color:var(--faint);font-weight:400;margin-top:12px;letter-spacing:.05em}
+
+  /* ---- COMPONENT: table ---- */
+  .tbl-wrap{overflow-x:auto;margin:22px 0;border:1px solid var(--border);border-radius:12px}
+  table{width:100%;border-collapse:collapse;font-size:14.5px;min-width:620px}
+  th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--border)}
+  th{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);background:var(--bg-soft)}
+  tr:last-child td{border-bottom:none}
+  td b{color:var(--text)}
+  td .mono{font-family:var(--mono);color:var(--accent);font-size:13px}
+  tbody tr:hover{background:var(--accent-glow)}
+
+  /* ---- COMPONENT: comparison matrix (cmux vs tmux vs Warp) ---- */
+  .matrix td:first-child,.matrix th:first-child{color:var(--text);font-weight:600}
+  .matrix .cmx{background:rgba(255,210,74,.07);border-left:1px solid var(--accent-dim);border-right:1px solid var(--accent-dim)}
+  .matrix thead .cmx{color:var(--accent);background:rgba(255,210,74,.12)}
+  .matrix tbody tr:hover .cmx{background:rgba(255,210,74,.15)}
+  .matrix .y{color:var(--accent);font-weight:700}
+  .matrix .p{color:var(--accent-2);font-weight:700}
+  .matrix .n{color:var(--faint);font-weight:700}
+  .matrix td small{display:block;color:var(--muted);font-size:11.5px;line-height:1.4;margin-top:1px}
+  .cap-note{font-family:var(--mono);font-size:11.5px;color:var(--faint);letter-spacing:.03em;margin:10px 0 0}
+  .cap-note a{color:var(--faint);text-decoration:underline}
+  .cap-note a:hover{color:var(--accent)}
+
+  /* ---- COMPONENT: checklist ---- */
+  .check{list-style:none;margin:18px 0;display:grid;gap:9px}
+  .check li{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--border);
+    border-radius:10px;padding:13px 16px;font-size:15px;color:var(--text);opacity:.95}
+  .check li::before{content:"";flex:none;width:17px;height:17px;border:1.5px solid var(--accent);border-radius:5px;margin-top:3px;background:var(--accent-glow)}
+  .check li b{color:var(--text)}
+  .chk-h{font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent-2);margin:26px 0 4px}
+
+  /* ---- COMPONENT: code block (verbatim config / CLI) ---- */
+  .code{background:#070A0D;border:1px solid var(--border);border-radius:12px;margin:22px 0;overflow:hidden}
+  .code .cbar{display:flex;align-items:center;gap:8px;padding:9px 15px;border-bottom:1px solid var(--border);background:var(--bg-soft)}
+  .code .cbar .dot{width:9px;height:9px;border-radius:50%;background:var(--border-bright)}
+  .code .cbar .cl{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-left:6px}
+  .code pre{margin:0;padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.62;color:var(--text);tab-size:2}
+  .code pre .c{color:var(--accent)}              /* accent token — keys/commands */
+  .code pre .m{color:var(--faint)}               /* muted token — comments/punctuation */
+  .code pre .s{color:var(--accent-2)}            /* string/value token */
+  code{font-family:var(--mono);font-size:.88em;color:var(--accent);background:var(--accent-glow);
+    border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);padding:1px 6px;border-radius:5px}
+
+  /* ---- misc ---- */
+  ul.clean{margin:14px 0 14px 2px;padding-left:20px}
+  ul.clean li{margin:8px 0;color:var(--text);opacity:.92}
+  ul.clean li::marker{color:var(--accent)}
+
+  footer{margin-top:70px;border-top:1px solid var(--border);padding:46px 0 70px;text-align:center}
+  footer .fq{font-family:var(--disp);font-size:22px;font-weight:600;color:var(--text)}
+  footer .fm{font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:14px;letter-spacing:.05em}
+
+  /* ---- PDF / print fidelity (affects print + headless PDF only, NOT screen) ----
+     Tuned so `make_pdf.sh` produces a clean paginated PDF on any theme. Keep intact. */
+  @media print{
+    *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+    @page{ size:Letter; margin:0; }                  /* full-bleed: theme bg fills the page */
+    html,body{ background:var(--bg) !important; }
+    body{ background-image:none !important; }
+    .hero-img{ height:auto !important; width:min(100%,760px) !important; }
+    /* each numbered section starts on a fresh page -> no headings stranded at page bottoms */
+    section{ break-before:page; page-break-before:always; padding:54px 0 26px; }
+    /* keep atomic blocks intact; tall multi-row cards may break BETWEEN rows */
+    figure,.stat,.phase,.callout,.pquote,.metastrip,.toc,.tbl-wrap,.check li,.code,
+    .grid-2 .card,.grid-3 .card,.lever{
+      break-inside:avoid; page-break-inside:avoid;
+    }
+    /* glue a heading/lead to whatever follows it */
+    .sec-head,h2,h3,.chk-h,.sub,.lead-rule{ break-after:avoid; page-break-after:avoid; }
+    figure{ margin:24px 0; }
+    a{ color:var(--accent) !important; text-decoration:none; }
+  }
+
+  /* ---- COMPONENT: tier library (prompt rows + copy buttons) ---- */
+  .tiergroup{margin:40px 0 8px}
+  .tiergroup:first-of-type{margin-top:24px}
+  .tg-head{border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:6px}
+  .tg-head h3{margin:0;font-size:22px;color:var(--text)}
+  .tg-head h3 .pstar{color:var(--accent-2)}
+  .tg-desc{font-size:15px;color:var(--muted);margin:7px 0 0;max-width:78ch}
+  .prompt-list{display:grid;gap:10px;margin:18px 0 6px}
+  .prow{display:flex;align-items:flex-start;gap:16px;background:var(--surface);border:1px solid var(--border);
+    border-radius:12px;padding:15px 18px;transition:border-color .15s ease,background .15s ease}
+  .prow:hover{border-color:var(--border-bright);background:var(--surface-2)}
+  .prow-main{flex:1;min-width:0}
+  .prow-id{display:flex;align-items:baseline;gap:11px}
+  .prow-id .pnum{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent);flex:none}
+  .prow-id .ptitle{font-family:var(--disp);font-weight:600;font-size:18px;color:var(--text);letter-spacing:-.005em}
+  .prow-id .ptitle .pstar{color:var(--accent-2)}
+  .pdesc{font-size:15.5px;color:var(--muted);margin-top:5px;line-height:1.5}
+  .pdesc code{font-size:.84em}
+  /* the actual prompt text, rendered from data-prompt (see script) */
+  .ptext{margin-top:12px;padding:13px 16px;background:var(--bg-soft);border:1px solid var(--border);
+    border-left:2px solid var(--accent);border-radius:0 9px 9px 0;font-size:15px;line-height:1.62;
+    color:var(--text);opacity:.94}
+  .ptext .pq{font-family:var(--mono);color:var(--accent);opacity:.6;margin-right:4px}
+  .ptext strong{color:var(--text);font-weight:600}
+  .ptext em{color:var(--muted);font-style:italic}
+  .ptext code{font-size:.85em}
+  .copy-btn{flex:none;font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;
+    color:var(--accent);background:var(--accent-glow);border:1px solid color-mix(in srgb,var(--accent) 38%,transparent);
+    padding:8px 14px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:all .15s ease}
+  .copy-btn:hover{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+  .copy-btn.copied{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+  @media(max-width:620px){
+    .prow{flex-direction:column;align-items:stretch;gap:12px}
+    .copy-btn{align-self:flex-start}
+  }
+  /* ---- COMPONENT: proof / lever rows wrapper card ---- */
+  .lever .ln.cy{color:var(--accent);opacity:.85}
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<header class="hero">
+  <div class="wrap hero-copy">
+    <h1>Start, Monitor, and Improve<br>your <span class="gc">fleet of agents</span></h1>
+    <ul class="hero-bullets">
+      <li><strong>AGENTIC:</strong> Orchestrate any agent any time programmatically</li>
+      <li><strong>IMPROVE:</strong> See every agent at a glance</li>
+      <li><strong>LAUNCH:</strong> Quick launch strategy for the 1,000th agent team</li>
+    </ul>
+    <img class="hero-svg" src="images/hero-orchestration.svg" alt="cmux 3-tier orchestration: one orchestrator window delegating to team-lead windows, each holding worker panes, with delegation light flowing on a loop">
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== TABLE OF CONTENTS ===== -->
+  <nav class="toc" aria-label="Table of contents">
+    <div class="toc-h">Contents</div>
+    <ol>
+      <li><a href="#s0"><span class="trow"><span class="tnum">00</span><span class="tt">Problem &amp; Solution</span></span><span class="td">Three orchestration problems, three cmux solutions.</span></a></li>
+      <li><a href="#s1"><span class="trow"><span class="tnum">01</span><span class="tt">The Mental Model</span></span><span class="td">Window → Workspace → Pane → Surface → Panel.</span></a></li>
+      <li><a href="#s2"><span class="trow"><span class="tnum">02</span><span class="tt">The Control Loop</span></span><span class="td">send · send-key · read-screen · close-surface.</span></a></li>
+      <li><a href="#s3"><span class="trow"><span class="tnum">03</span><span class="tt">Read, Decide &amp; Get Notified</span></span><span class="td">Push the events, poll the content.</span></a></li>
+      <li><a href="#s4"><span class="trow"><span class="tnum">04</span><span class="tt">What Can Cmux Do?</span></span><span class="td">All 31 prompts, grouped. Copy any one.</span></a></li>
+      <li><a href="#s5"><span class="trow"><span class="tnum">05</span><span class="tt">Agentic Access</span></span><span class="td">The requirement: a CLI/API your agents can drive.</span></a></li>
+      <li><a href="#s6"><span class="trow"><span class="tnum">06</span><span class="tt">cmux vs tmux vs Warp</span></span><span class="td">Feature parity, cmux's real moat, and the newness tax.</span></a></li>
+    </ol>
+  </nav>
+
+
+  <!-- ===== SECTION 00: THE THREE PROOFS ===== -->
+  <section id="s0">
+    <div class="sec-head"><span class="sec-num">00</span><h2>Problem &amp; Solution</h2></div>
+    <div class="lead-rule"></div>
+    <p class="pquote">Problems come first, tools come second.</p>
+
+    <div class="flow">
+      <div class="flow-item">
+        <div class="flow-rail">1</div>
+        <div class="flow-grid">
+          <div class="flow-cell flow-prob">
+            <div class="flow-k">Problem</div>
+            <div class="flow-h">No programmatic access means you're the bottleneck</div>
+            <div class="flow-p">If a tool can't be driven by a CLI or API, your agents can't operate it. A human stays in the loop, so you never reach agentic speed, let alone operate agents with agents.</div>
+          </div>
+          <div class="flow-arrow"></div>
+          <div class="flow-cell flow-sol flip-cell">
+            <div class="flip">
+              <div class="flip-inner">
+                <button type="button" class="flip-front" aria-expanded="false">
+                  <span class="flip-q">Can Cmux Solve This?</span>
+                  <span class="flip-cta">Reveal the answer &#8594;</span>
+                </button>
+                <div class="flip-back">
+                  <div class="flow-k">cmux solution</div>
+                  <div class="flow-h">Agentic access to every terminal</div>
+                  <div class="flow-p">Every surface is a real, addressable terminal (<code>surface:3</code>) exposed over a CLI and socket. One orchestrator, itself an agent, drives the whole window: spawn, prompt, read, hand off. Agents operating agents.</div>
+                  <div class="flow-chips"><span class="flow-chip">Tiers 1&ndash;5</span></div>
+                  <button type="button" class="flip-reset" aria-label="Ask again">&#8634;</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-item">
+        <div class="flow-rail">2</div>
+        <div class="flow-grid">
+          <div class="flow-cell flow-prob">
+            <div class="flow-k">Problem</div>
+            <div class="flow-h">An agent you can't see is an agent you can't improve</div>
+            <div class="flow-p">A 3-tier team in identical gray panes is a black box. You can't tell a lead from a worker or watch the hand-offs, so you can't debug or improve the system. That's vibe coding, not engineering.</div>
+          </div>
+          <div class="flow-arrow"></div>
+          <div class="flow-cell flow-sol flip-cell">
+            <div class="flip">
+              <div class="flip-inner">
+                <button type="button" class="flip-front" aria-expanded="false">
+                  <span class="flip-q">Can Cmux Solve This?</span>
+                  <span class="flip-cta">Reveal the answer &#8594;</span>
+                </button>
+                <div class="flip-back">
+                  <div class="flow-k">cmux solution</div>
+                  <div class="flow-h">Customizable panes, per role</div>
+                  <div class="flow-p">Per-workspace color, role pill, and icon, plus per-pane identity: tab name, colored banner, colored prompt. One window per team, lead on the left, workers on the right. Read the whole hierarchy at a glance.</div>
+                  <div class="flow-chips"><span class="flow-chip">prompt 26</span><span class="flow-chip">prompt 31</span></div>
+                  <button type="button" class="flip-reset" aria-label="Ask again">&#8634;</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-item">
+        <div class="flow-rail">3</div>
+        <div class="flow-grid">
+          <div class="flow-cell flow-prob">
+            <div class="flow-k">Problem</div>
+            <div class="flow-h">Booting a team by hand kills agentic speed</div>
+            <div class="flow-p">Standing up an orchestrator, leads, and workers by hand takes minutes of clicking and re-typing, and a restart wipes it. You can't spin up a team per feature at the speed of agents.</div>
+          </div>
+          <div class="flow-arrow"></div>
+          <div class="flow-cell flow-sol flip-cell">
+            <div class="flip">
+              <div class="flip-inner">
+                <button type="button" class="flip-front" aria-expanded="false">
+                  <span class="flip-q">Can Cmux Solve This?</span>
+                  <span class="flip-cta">Reveal the answer &#8594;</span>
+                </button>
+                <div class="flip-back">
+                  <div class="flow-k">cmux solution</div>
+                  <div class="flow-h">Reusable session files</div>
+                  <div class="flow-p">A declarative file boots the whole roster from one prompt (<code>cmux.json</code> <code>commands[]</code>), and crash-proof resume rebuilds it after a restart. A fresh team per feature in seconds.</div>
+                  <div class="flow-chips"><span class="flow-chip">prompt 09</span><span class="flow-chip">prompt 24</span></div>
+                  <button type="button" class="flip-reset" aria-label="Ask again">&#8634;</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ===== SECTION 01: THE MENTAL MODEL ===== -->
+  <section id="s1">
+    <div class="sec-head"><span class="sec-num">01</span><h2>The Mental Model</h2></div>
+    <div class="lead-rule"></div>
+    <p class="sub">Everything in cmux nests in one hierarchy. Learn the five boxes and the verbs fall out of them.</p>
+    <figure>
+      <img src="images/model.webp" alt="Five concentric labeled boxes: Window contains Workspace, Pane, Surface, and Panel">
+      <figcaption>Fig. 2 · Five nested boxes: a Window holds Workspaces, which hold Panes, which hold Surfaces, each wrapping one Panel.</figcaption>
+    </figure>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Box</th><th>What it is</th><th>The verb</th></tr></thead>
+        <tbody>
+          <tr><td><b>Window</b></td><td>A macOS window with its own sidebar.</td><td class="mono">cmux new-window</td></tr>
+          <tr><td><b>Workspace</b></td><td>A sidebar entry (a &ldquo;tab&rdquo;).</td><td class="mono">cmux workspace create</td></tr>
+          <tr><td><b>Pane</b></td><td>A split region within a workspace.</td><td class="mono">cmux new-split &lt;dir&gt;</td></tr>
+          <tr><td><b>Surface</b></td><td>A tab within a pane (terminal or browser).</td><td class="mono">cmux new-surface</td></tr>
+          <tr><td><b>Panel</b></td><td>The content itself, created automatically.</td><td class="mono">n/a</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <div class="ct">Memorize this</div>
+      <p>Window → Workspace → Pane → Surface → Panel. Refs like <code>workspace:2</code> and <code>surface:3</code> are handles you capture at creation and thread through every later call.</p>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 02: THE CONTROL LOOP ===== -->
+  <section id="s2">
+    <div class="sec-head"><span class="sec-num">02</span><h2>The Control Loop</h2></div>
+    <div class="lead-rule"></div>
+    <p class="sub">Four verbs <em>are</em> the orchestration loop. Wrap them in a workspace and one agent is operating four others:</p>
+    <ul class="subpoints">
+      <li><b>send</b> types text into a surface.</li>
+      <li><b>send-key</b> submits it (press Enter).</li>
+      <li><b>read-screen</b> reads what it printed: the agent's eyes.</li>
+      <li><b>close-surface</b> tears it down.</li>
+    </ul>
+    <figure>
+      <img src="images/loop.webp" alt="An orchestrator sends text and keys into agent terminals and reads their output back in a loop">
+      <figcaption>Fig. 3 · <code>send</code>/<code>send-key</code> push into each surface, <code>read-screen</code> is the agent's eyes, <code>close-surface</code> ends it.</figcaption>
+    </figure>
+    <div class="code">
+      <div class="cbar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="cl">The entire control loop · four verbs</span></div>
+      <pre><span class="c">cmux</span> send        --surface surface:3 "claude"     <span class="m"># type into a terminal</span>
+<span class="c">cmux</span> send-key    --surface surface:3 enter        <span class="m"># press a key (submit)</span>
+<span class="c">cmux</span> read-screen --surface surface:3              <span class="m"># read what it printed (its eyes)</span>
+<span class="c">cmux</span> close-surface --surface surface:3            <span class="m"># shut it down (teardown)</span></pre>
+    </div>
+    <div class="callout alt">
+      <div class="ct">One gotcha</div>
+      <p><code>send</code> types; <code>send-key</code> submits. There is no modifier chord. To stop a running agent, <code>close-surface</code> it cleanly.</p>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 03: READ, DECIDE & GET NOTIFIED ===== -->
+  <section id="s3">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Read, Decide &amp; Get Notified</h2></div>
+    <div class="lead-rule"></div>
+    <p class="sub">An orchestrator does two things a plain script can't:</p>
+    <ul class="subpoints">
+      <li><b>Reads &amp; decides</b>: what did the agent actually say? <em>Poll</em> it with <code>read-screen</code>.</li>
+      <li><b>Gets notified</b>: the instant something happens. cmux <em>pushes</em> discrete events via <code>events</code> / <code>wait-for</code>.</li>
+    </ul>
+    <p>The rule: <strong>push</strong> the events, <strong>poll</strong> only the free-form content you must inspect.</p>
+    <figure>
+      <img src="images/notify.webp" alt="Push versus poll: cmux events and wait-for push discrete doorbell events while read-screen polls content">
+      <figcaption>Fig. 4 · <code>cmux events</code> / <code>wait-for</code> are the doorbell (push); <code>read-screen</code> is how you read the room (poll).</figcaption>
+    </figure>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>To know…</th><th>Use</th><th>Push or poll</th></tr></thead>
+        <tbody>
+          <tr><td>an agent finished / needs input</td><td class="mono">cmux events --name agent.hook</td><td><b>push</b></td></tr>
+          <tr><td>block until task X signals done</td><td class="mono">cmux wait-for X</td><td><b>push</b> (blocks)</td></tr>
+          <tr><td>any notification, durably</td><td class="mono">cmux events --category notification --reconnect</td><td><b>push</b></td></tr>
+          <tr><td>what the agent actually wrote</td><td class="mono">cmux read-screen --surface &lt;ref&gt; --scrollback</td><td>poll</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <div class="ct">Privacy-respecting doorbell</div>
+      <p>The event payload carries <code>workspace_id</code> / <code>surface_id</code> / <code>notification_id</code> and content lengths, but the title and body are redacted. Fetch the text by reading the surface.</p>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 04: CLIMB THE TIERS ===== -->
+  <section id="s4">
+    <div class="sec-head"><span class="sec-num">04</span><h2>What Can Cmux Do?</h2></div>
+    <div class="lead-rule"></div>
+    <p class="sub">The capability library: 31 natural-language prompts that climb from &ldquo;open one workspace&rdquo; to &ldquo;run an autonomous, browser-verified software factory&rdquo;, then customize the whole thing. Hit <strong>Copy prompt</strong> and hand any one to your orchestrator.</p>
+    <figure>
+      <img src="images/tiers.webp" alt="A staircase of capability tiers climbing from foundations to a full software factory, then customization">
+      <figcaption>Fig. 5 · Five tiers of orchestration plus a customization track. Each prompt is one rung you can copy and run.</figcaption>
+    </figure>
+    <div class="tiergroup">
+      <div class="tg-head"><h3>Tier 1 · Foundations</h3><p class="tg-desc">The atomic loop: create a surface, type into it, read it back, tear it down. No agents yet, just the orchestrator and terminals.</p></div>
+      <div class="prompt-list">
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">01</span><span class="ptitle">Hello, Workspace</span></div>
+            <div class="pdesc">Open a workspace, run a command, read the result back.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux In cmux, open a new workspace called **scratch** in a throwaway temp directory, run `uname -a` in it, then tell me exactly what it printed." aria-label="Copy the prompt for Hello, Workspace">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">02</span><span class="ptitle">Read It Back</span></div>
+            <div class="pdesc">Pull output that scrolled off-screen out of scrollback.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Open a workspace in a fresh temp directory, create 60 throwaway files in it, list them with `ls -la`, then read the output back from scrollback and tell me how many files there are — and name three." aria-label="Copy the prompt for Read It Back">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">03</span><span class="ptitle">Split Into a Grid</span></div>
+            <div class="pdesc">Turn one workspace into a live 2×2 of terminals.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Build me a monitoring dashboard in one cmux workspace called **dash** in a temp directory: split it into a 2×2 grid of terminals. Top-left run `htop`, top-right `watch -n1 date`, bottom-left tail a temp log file it owns, and leave the bottom-right as a plain shell." aria-label="Copy the prompt for Split Into a Grid">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">04</span><span class="ptitle">Map the World</span></div>
+            <div class="pdesc">Dump the full window / workspace / pane / surface tree + per-surface CPU/mem.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Show me everything cmux is running right now — every window, workspace, pane and surface — and for each terminal tell me the process, CPU, and memory. Give it to me as a tidy report, and flag anything using more than 50% CPU." aria-label="Copy the prompt for Map the World">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">05</span><span class="ptitle">Tidy Up</span></div>
+            <div class="pdesc">Rename, flash for attention, close panes, then the workspace.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Take the **dash** workspace from before: rename it to **retired**, flash it so I can spot it, then close its extra panes one by one, and finally close the whole workspace." aria-label="Copy the prompt for Tidy Up">Copy prompt</button>
+        </div>
+      </div>
+    </div>
+    <div class="tiergroup">
+      <div class="tg-head"><h3>Tier 2 · Driving One Agent</h3><p class="tg-desc">The pivot: the terminal an agent drives can itself contain another agent. This is the whole idea, in miniature.</p></div>
+      <div class="prompt-list">
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">06</span><span class="ptitle">Launch One Agent</span></div>
+            <div class="pdesc">Boot Claude Code in a pane and prompt it.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Open a fresh pane, start **Claude Code** in it, ask it to write a haiku about terminals, give it a few seconds, then read me back exactly what it wrote." aria-label="Copy the prompt for Launch One Agent">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">07</span><span class="ptitle">Keys &amp; Credentials</span></div>
+            <div class="pdesc">Inject .env so an agent comes up authenticated, without leaking secrets.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Spin up a workspace that has my API keys from `.env` loaded into its environment, launch the **pi** coding agent there, and ask it to confirm it can reach a model. Read me what it says — but never print my actual keys." aria-label="Copy the prompt for Keys &amp; Credentials">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">08</span><span class="ptitle">Two Agents, One Question</span></div>
+            <div class="pdesc">Claude Code + pi side by side, same prompt, compared.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Put **Claude Code** and **pi** side by side in one workspace. Ask both the same question — *&#x27;In two sentences, what&#x27;s the difference between a process and a thread?&#x27;* — then read both answers and tell me where they agree and where they differ." aria-label="Copy the prompt for Two Agents, One Question">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">09</span><span class="ptitle">Declarative Boot</span></div>
+            <div class="pdesc">A reusable agent layout as code (<code>cmux.json</code> or <code>--layout</code>).</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Add a reusable **AI Pair** layout to my cmux config: a left pane running Claude Code and a right pane that&#x27;s a plain shell in the current project. Validate it, then launch it." aria-label="Copy the prompt for Declarative Boot">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">10</span><span class="ptitle">Native Sessions &amp; Resume</span></div>
+            <div class="pdesc">Spawn a provider-aware agent surface that resumes after restart.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Spawn Claude Code as a **native cmux agent session** — not just the word &#x27;claude&#x27; typed into a shell — and set things up so that if cmux restarts, this session resumes exactly where it left off." aria-label="Copy the prompt for Native Sessions &amp; Resume">Copy prompt</button>
+        </div>
+      </div>
+    </div>
+    <div class="tiergroup">
+      <div class="tg-head"><h3>Tier 3 · Orchestrating a Fleet</h3><p class="tg-desc">One orchestrator, many agents. Broadcast, shard, watch, react, and tear down at scale.</p></div>
+      <div class="prompt-list">
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">11</span><span class="ptitle">The 2×2 Fleet <span class="pstar">&#9733;</span></span></div>
+            <div class="pdesc">Four agents (Claude·Opus, Codex·GPT-5.5, pi·Minimax-M3, pi·GLM-5.2), one broadcast task, read all four.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Stand up four coding agents in a 2×2 grid — **Claude Code** (Opus, xhigh reasoning effort), **Codex** (GPT-5.5), **pi** with the **Minimax-M3** model, and **pi** with the **GLM-5.2** model — in a workspace called **security-fleet** with my `.env` loaded. Launch Codex with `--dangerously-bypass-approvals-and-sandbox` so it runs in yolo mode (no approval prompts). Give all four the same task: *&#x27;List the top 3 security risks you can find in this repo.&#x27;* Then read all four answers back and tell me which risks they agree on." aria-label="Copy the prompt for The 2×2 Fleet">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">12</span><span class="ptitle">Fan-Out / Fan-In</span></div>
+            <div class="pdesc">Shard a job across agents, then merge their outputs.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Split this repo&#x27;s work four ways. Give each of four agents one top-level directory — `src/`, `tests/`, `docs/`, and `scripts/` — and have each summarize *only its directory* in five bullets. Then collect all four summaries into a single map of the codebase." aria-label="Copy the prompt for Fan-Out / Fan-In">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">13</span><span class="ptitle">Live Status Board</span></div>
+            <div class="pdesc">Colored status pills + progress bars + logs, one per agent.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Run four agents on four refactors, but give each its **own sidebar workspace**, and keep the sidebar live: show each one&#x27;s status as a colored pill (**working** = blue, **done** = green, **error** = red), a progress bar, and a one-line log of what it&#x27;s doing. I want to glance at the sidebar and know the whole fleet&#x27;s state." aria-label="Copy the prompt for Live Status Board">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">14</span><span class="ptitle">Reactive Loop</span></div>
+            <div class="pdesc">Drive off cmux's event stream instead of polling screens.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Here&#x27;s a queue of ten tasks and three agents. Don&#x27;t poll the screens. **Subscribe to cmux&#x27;s event stream**, and the moment an agent finishes (its surface notifies or goes idle), read that agent, hand it the next task from the queue, and keep going until the queue is empty." aria-label="Copy the prompt for Reactive Loop">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">15</span><span class="ptitle">Race &amp; Notify</span></div>
+            <div class="pdesc">Eight agents race three needle-in-the-haystack searches; first to crack all three pings you, the rest are killed.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Race eight agents on the same needle-in-the-haystack hunt through this codebase — first to nail **all three** wins: (1) **where and how a page&#x27;s `word_count` is computed** — the file, the function, and the exact formula; (2) **which keystroke toggles the keyboard-shortcuts cheat-sheet** — the file the listener lives in, and the guard that stops it firing while you&#x27;re typing in a field; (3) **the environment variable that overrides the dev server&#x27;s `/api` backend proxy target**, and its default value. In my current window, stand all eight up as panes in **one new workspace** (not new windows), running in parallel with the identical task: **Claude Code** (Opus), **Claude Code** (Sonnet), **Codex** (GPT-5.5), **Codex** (GPT-5.5, low effort), **pi** with **GLM-5.2**, **pi** with **Minimax-M3**, **pi** with **Gemini-3.5-Flash**, and **pi** with **qwen3.6:27b-coding-nvfp4** (Ollama, local). Launch every Codex with `--dangerously-bypass-approvals-and-sandbox` so it runs in yolo mode (no approval prompts). Wire each so it fires a **cmux notification** the instant it has all three answers. **Don&#x27;t spawn any subagents and don&#x27;t poll** — just block on the cmux event stream (`cmux events` / `wait-for`) and let the first workspace event tell you who won. On that first result, jump me to that pane, read back its three answers, and **stop the other seven**." aria-label="Copy the prompt for Race &amp; Notify">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">16</span><span class="ptitle">Scale &amp; Teardown</span></div>
+            <div class="pdesc">Rank by CPU, prune stragglers, reassign their work, reclaim the panes.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Launch six agents on this batch of tasks. After two minutes, look at which ones are still chewing CPU with nothing to show, close the slowest two, reassign their unfinished tasks to agents that already finished, and when the batch is done, tear the whole fleet down." aria-label="Copy the prompt for Scale &amp; Teardown">Copy prompt</button>
+        </div>
+      </div>
+    </div>
+    <div class="tiergroup">
+      <div class="tg-head"><h3>Tier 4 · Terminals Meet the Browser</h3><p class="tg-desc">A cmux surface can be a browser, with a Playwright-style API. Now agents build, run, and verify in one window.</p></div>
+      <div class="prompt-list">
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">17</span><span class="ptitle">Agent + Live Preview</span></div>
+            <div class="pdesc">A coding agent on the left, a live preview of its app on the right.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux In one workspace, put **Claude Code** on the left building a tiny web app, and an embedded **browser** on the right pointed at its dev server (`http://localhost:5173`). Each time the agent changes the code, reload the preview so I can watch the page evolve." aria-label="Copy the prompt for Agent + Live Preview">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">18</span><span class="ptitle">Agent Drives the Browser</span></div>
+            <div class="pdesc">Snapshot the DOM, click, fill, screenshot to prove it worked.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Open `https://example.com` in a cmux browser, snapshot the page so you know what&#x27;s there, click the **&#x27;More information…&#x27;** link, wait for the new page, and screenshot the result so I can confirm it worked." aria-label="Copy the prompt for Agent Drives the Browser">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">19</span><span class="ptitle">Self-Verifying Agent</span></div>
+            <div class="pdesc">Read the browser console / errors, fix, re-check until clean.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Agent: build a small page and run its dev server. Then drive the cmux browser against your own UI — load the page, read the browser **console and error log**, and if anything&#x27;s broken, fix the code and re-check. Loop until the console is clean, then screenshot the working page." aria-label="Copy the prompt for Self-Verifying Agent">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">20</span><span class="ptitle">Capture &amp; Replay Auth</span></div>
+            <div class="pdesc">Log in once, save the session, replay it across every agent run.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux I&#x27;ll log into the app once in a cmux browser. Save that whole browser session to a file. Then, for every future agent run, load that saved state first so the agent&#x27;s browser is already authenticated — no logging in again." aria-label="Copy the prompt for Capture &amp; Replay Auth">Copy prompt</button>
+        </div>
+      </div>
+    </div>
+    <div class="tiergroup">
+      <div class="tg-head"><h3>Tier 5 · Scale, Remote &amp; Resilience</h3><p class="tg-desc">The largest moves: multiple windows, organized groups, remote and cloud agents, restart survival, and the capstone.</p></div>
+      <div class="prompt-list">
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">21</span><span class="ptitle">Multi-Window Command Center</span></div>
+            <div class="pdesc">Spread fleets across macOS windows, route work per window.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Don&#x27;t cram everything into one window. Open three macOS windows — **frontend**, **backend**, and **ops** — put a small agent fleet in each, route the right tasks to each window, then gather all the results into one summary for me." aria-label="Copy the prompt for Multi-Window Command Center">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">22</span><span class="ptitle">Organized Sidebar at Scale</span></div>
+            <div class="pdesc">Three workspaces, four agents each — a mixed fleet of twelve, kept legible in named, colored groups.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux In my current window, add **three new workspaces** (not new windows), four agents each (twelve total), mixing models from our roster. **alpha**: Claude Code (Opus), Codex (GPT-5.5), pi·GLM-5.2, pi·Minimax-M3. **beta**: Claude Code (Sonnet), Codex (GPT-5.5, low effort), pi·Gemini-3.5-Flash, pi·qwen3.6:27b-coding-nvfp4 (Ollama, local). **gamma**: Claude Code (Opus), Codex (GPT-5.5), pi·GLM-5.2, pi·Gemini-3.5-Flash. Launch every Codex with `--dangerously-bypass-approvals-and-sandbox` so it runs in yolo mode (no approval prompts). Load my `.env` into each, give every workspace its own color so the sidebar stays legible at a glance. **Do this yourself with cmux verbs — don&#x27;t spawn any subagents** — then read back a confirmation that all twelve agents are up." aria-label="Copy the prompt for Organized Sidebar at Scale">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">23</span><span class="ptitle">Remote &amp; Cloud Fleets</span></div>
+            <div class="pdesc">Agents on SSH hosts and cloud VMs, driven by the same verbs as local.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Run agents where the code actually lives. Open an **SSH workspace** on my dev box and spin up a fresh **cloud VM**, launch a coding agent in each, and drive them with the exact same `send`/`read-screen` commands you use locally." aria-label="Copy the prompt for Remote &amp; Cloud Fleets">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">24</span><span class="ptitle">Crash-Proof: Resume the Fleet</span></div>
+            <div class="pdesc">Quit and relaunch; the layout rebuilds and agents resume their sessions.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Make my fleet restart-proof. Install the resume hooks for every agent, start several agents working, then quit and relaunch cmux — and confirm the layout came back **and** each agent picked up its own session where it left off." aria-label="Copy the prompt for Crash-Proof: Resume the Fleet">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">25</span><span class="ptitle">The Software Factory <span class="pstar">&#9733;</span></span></div>
+            <div class="pdesc">Ship a real feature (Flotion full-text search): plan → fan out → test → browser-verify → notify → collect diffs → teardown.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Be my build lead for **Flotion** (`apps/flotion` — Vue 3 + TS frontend, FastAPI + SQLite backend). Ship this feature request: **full-text search** — a search box at the top of the sidebar that queries a new `GET /api/search?q=` endpoint (matching page titles and block content) and shows clickable results that jump to the matching page. **Plan** the work, open a **window per subsystem** (backend / frontend), **fan out** the implementation to a fleet of agents (roughly one per file — the search endpoint + SQL query in `main.py`, the typed client method in `api.ts`, the sidebar search input, and a results component), keep a **live status board** so I can watch, **run the tests** as each agent finishes, **browser-verify** the running app (searching &#x27;Welcome&#x27; surfaces the seeded **Welcome to Flotion** page and clicking it opens that page), **notify** me with the result, **collect every agent&#x27;s diff** into one PR-ready bundle, and **tear the fleet down** when it&#x27;s green." aria-label="Copy the prompt for The Software Factory">Copy prompt</button>
+        </div>
+      </div>
+    </div>
+    <div class="tiergroup">
+      <div class="tg-head"><h3>Customization</h3><p class="tg-desc">Per-workspace identity is scriptable on the fly, the terminal's look is a live-reloaded global, and the app's actions, layouts, and sidebar are yours to redefine, globally or per-repo.</p></div>
+      <div class="prompt-list">
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">26</span><span class="ptitle">Color-Code &amp; Label the Fleet</span></div>
+            <div class="pdesc">Eight agents across four workspaces — two per workspace (FE + BE) split left, a browser on the right; every workspace and pane color-coded and labeled.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Stand up **eight agents across four workspaces — two agents each**. Give every workspace a **two-column layout**: the two agents on the **left**, split **vertically** (a frontend agent on top, a backend agent on the bottom), and a **browser** surface on the **right** pointed at `example.com`. Make each workspace identifiable — its own **color**, a **role pill**, and an **icon** — and then do the same at the pane level: label each agent&#x27;s tab so it&#x27;s scannable, **FE-&lt;tool&gt;** for the frontend agent and **BE-&lt;tool&gt;** for the backend agent (e.g. **FE-Claude**, **BE-Codex**, **FE-pi**, **BE-pi**). Mix the tools across the four workspaces." aria-label="Copy the prompt for Color-Code &amp; Label the Fleet">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">27</span><span class="ptitle">Theme &amp; Feel</span></div>
+            <div class="pdesc">Font, theme, opacity, cursor via Ghostty config; live-reload, no restart.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Change the terminal&#x27;s whole look: switch to a darker theme, bump the font a touch, dial the background to ~92% opacity, and apply it **without restarting**." aria-label="Copy the prompt for Theme &amp; Feel">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">28</span><span class="ptitle">Custom Actions &amp; Buttons</span></div>
+            <div class="pdesc">Your own verbs in the Command Palette, tab bar, and <strong>+</strong> button.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Give me one-tap ways to spawn agents: a **Codex** entry in the Command Palette, a **Codex** button on the tab bar, and make the **+** button&#x27;s right-click menu offer &#x27;New Terminal / New Browser / Spawn Codex&#x27;." aria-label="Copy the prompt for Custom Actions &amp; Buttons">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">29</span><span class="ptitle">Reusable Layouts &amp; Dock Controls</span></div>
+            <div class="pdesc">Named <code>commands</code> layouts + a right-sidebar Dock of tools.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Two things: a one-command **dev** workspace (dev server on the left, live browser preview on the right), and a **Dock** in the right sidebar with quick buttons for lazygit, a test watcher, and the cmux Feed." aria-label="Copy the prompt for Reusable Layouts &amp; Dock Controls">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">30</span><span class="ptitle">Make It Yours</span></div>
+            <div class="pdesc">Per-repo <code>.cmux/cmux.json</code> + a hot-reloading custom sidebar bound to live data.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Two things. Make this repo&#x27;s cmux behavior travel with it (its own layouts/actions/dock). And build me a **custom sidebar** that lists my workspaces with a live clock and each one&#x27;s PR status, where clicking a row jumps to it." aria-label="Copy the prompt for Make It Yours">Copy prompt</button>
+        </div>
+        <div class="prow">
+          <div class="prow-main">
+            <div class="prow-id"><span class="pnum">31</span><span class="ptitle">Identify Individual Panes</span></div>
+            <div class="pdesc">Per-pane identity: tab name + colored ANSI banner + colored prompt.</div>
+          </div>
+          <button class="copy-btn" data-prompt="/cmux Split a workspace into 4 panes and make each one instantly identifiable — give each its own tab name, a bold colored banner at the top, and a matching colored prompt, so I can tell **reviewer / fixer / tester / builder** apart at a glance." aria-label="Copy the prompt for Identify Individual Panes">Copy prompt</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 05: AGENTIC ACCESS ===== -->
+  <section id="s5">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Agentic Access</h2></div>
+    <div class="lead-rule"></div>
+    <p class="sub">A tool has <strong>agentic access</strong> when it ships a CLI, an API — <em>some</em> programmatic surface your agents can drive. Not a GUI a human clicks. A handle a machine can hold.</p>
+    <figure>
+      <img src="images/agentic-access.webp" alt="A glowing terminal port with a plug of light connecting into it — programmatic access an agent can drive">
+    </figure>
+    <p class="pquote">If a tool has no programmatic access, I ignore it. Every engineering tool has to have this now.</p>
+    <ul class="subpoints">
+      <li><b>The definition.</b> A CLI, an API, a socket — any way for an <em>agent</em> to operate the tool, not just a human.</li>
+      <li><b>The stakes.</b> Agentic access is what lets you move at <b>agentic speed</b> — and, crucially, operate agents <em>with</em> agents.</li>
+    </ul>
+    <div class="callout">
+      <div class="ct">The bigger pattern</div>
+      <p>It's the #1 opportunity of the agentic era — and one of the five elements every agentic tool needs. The shape is simple: <strong>agentic access = agent speed.</strong></p>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 06: cmux vs tmux vs Warp ===== -->
+  <section id="s6">
+    <div class="sec-head"><span class="sec-num">06</span><h2>cmux vs tmux vs Warp</h2></div>
+    <div class="lead-rule"></div>
+    <p class="sub">Three terminals, three different problems:</p>
+    <ul class="subpoints">
+      <li><b>tmux</b> multiplexes one terminal into scriptable panes — and has since 2007.</li>
+      <li><b>Warp</b> reinvents the <em>individual</em> command line with Blocks, an embedded agent, and a cloud orchestration platform (Oz).</li>
+      <li><b>cmux</b> exists to <b>orchestrate fleets of AI coding agents</b> — every agent is a real, addressable surface you drive over a local socket.</li>
+    </ul>
+    <p class="pquote">The honest question isn't "which is best," it's: how much of cmux is just tmux plus glue, what does Warp do better, and what is cmux-only?</p>
+
+    <div class="tbl-wrap">
+      <table class="matrix">
+        <thead>
+          <tr><th>Capability</th><th class="cmx">cmux</th><th>tmux</th><th>Warp</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Built for</td>                                <td class="cmx"><span class="y">●</span> orchestrating agent fleets</td><td><span class="n">○</span> multiplexing terminals</td><td><span class="p">◐</span> one AI terminal + cloud agents</td></tr>
+          <tr><td>Platform reach</td>                           <td class="cmx"><span class="n">○</span> macOS only (iOS beta)</td><td><span class="y">●</span> Linux / macOS / BSD / WSL</td><td><span class="y">●</span> macOS / Linux / Windows</td></tr>
+          <tr><td>License / openness</td>                       <td class="cmx"><span class="p">◐</span> GPL-3.0-or-later (+ commercial)</td><td><span class="y">●</span> ISC, ubiquitous</td><td><span class="p">◐</span> AGPLv3 client; Oz cloud proprietary</td></tr>
+          <tr><td>Create / type / read / kill panes</td>        <td class="cmx"><span class="y">●</span> four verbs</td><td><span class="y">●</span> send-keys / capture-pane / kill-pane</td><td><span class="p">◐</span> Blocks + splits</td></tr>
+          <tr><td>Input control (Ctrl-C, chords)</td>           <td class="cmx"><span class="n">○</span> named keys, <em>no Ctrl-C</em></td><td><span class="y">●</span> full chords + literal bytes</td><td><span class="y">●</span> full</td></tr>
+          <tr><td>Scriptable surface API (drive the UI)</td>    <td class="cmx"><span class="y">●</span> CLI + socket, every surface addressable</td><td><span class="p">◐</span> scriptable, but you build the layer</td><td><span class="p">◐</span> Workflows / MCP, not UI-driving</td></tr>
+          <tr><td>Embedded browser (agent self-verifies UI)</td><td class="cmx"><span class="y">●</span> Playwright-style surface</td><td><span class="n">○</span> none</td><td><span class="n">○</span> none</td></tr>
+          <tr><td>Agent-session resume (conversation)</td>      <td class="cmx"><span class="y">●</span> layout + native session IDs</td><td><span class="p">◐</span> relaunch only (resurrect)</td><td><span class="p">◐</span> cloud-managed</td></tr>
+          <tr><td>Event bus / push notifications</td>           <td class="cmx"><span class="y">●</span> cursored JSON events + wait-for</td><td><span class="p">◐</span> control-mode / hooks (build it)</td><td><span class="p">◐</span> completion alerts</td></tr>
+          <tr><td>Visible multi-agent command center</td>       <td class="cmx"><span class="y">●</span> sidebar, attention rings, per-pane CPU/mem</td><td><span class="p">◐</span> single text status line</td><td><span class="p">◐</span> Block UI, not a fleet grid</td></tr>
+          <tr><td>Remote persistence (detach / reattach)</td>   <td class="cmx"><span class="p">◐</span> ssh / vm + surface reconnect</td><td><span class="y">●</span> founding strength, ~20 yrs hardened</td><td><span class="p">◐</span> Warpify subshells</td></tr>
+          <tr><td>Team collaboration / sharing</td>             <td class="cmx"><span class="n">○</span> single-user by design</td><td><span class="n">○</span> none (manual plugins)</td><td><span class="y">●</span> Warp Drive: sync, Notebooks, SSO</td></tr>
+          <tr><td>Maturity / stability</td>                     <td class="cmx"><span class="p">◐</span> young (v0.6x), API still moving</td><td><span class="y">●</span> battle-tested since 2007</td><td><span class="p">◐</span> ~3 yrs, fast-moving</td></tr>
+          <tr><td>Pricing</td>                                  <td class="cmx"><span class="y">●</span> free, BYO model keys</td><td><span class="y">●</span> free</td><td><span class="p">◐</span> free tier; Build $20 · Biz $50/seat + BYOK</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="chk-h">What cmux is genuinely best at</p>
+    <ul class="check">
+      <li><b>Driving the whole UI from a script.</b> Every window, workspace, pane, and surface is addressable over a local socket with <code>--json</code> output — that's what lets one agent operate many others.</li>
+      <li><b>Agents that verify their own work.</b> A surface can <em>be</em> a browser with a Playwright-style API, so an agent builds in one pane and checks the rendered UI + console in the next — in one window. Neither tmux nor Warp has this.</li>
+      <li><b>Conversation-level resume.</b> Two-phase restore rebuilds the layout <em>and</em> resumes supported agents on the native session IDs its hooks captured — the agent picks the conversation back up, not just a fresh relaunch.</li>
+      <li><b>A real event bus.</b> Reconnectable, cursored NDJSON events plus <code>wait-for</code> and <code>notify</code> let an orchestrator react the instant an agent finishes — instead of polling scrollback.</li>
+    </ul>
+
+    <div class="callout alt">
+      <div class="ct">Where cmux falls short — the newness tax</div>
+      <p>Roughly <strong>80–85% of the local orchestration loop is replicable in tmux + a ~150-line shell wrapper</strong> — and for the overlap, tmux is often <em>better</em>: it sends <code>Ctrl-C</code>, handles any modifier chord, survives flaky SSH with true detach/reattach, and runs on every OS. tmux is <strong>tried-and-true</strong>: ISC-licensed, shipping since 2007, hardened on every server.</p>
+      <p>cmux is <strong>young</strong> — a v0.6x native Swift/AppKit app, macOS-only, single-user, with an API still in motion and a small community. You pay a <strong>newness tax</strong>: fewer years of hardening, more breaking changes, fewer escape hatches (no Ctrl-C, no cross-platform, no team layer). The bet only pays off because the remaining <strong>~15–20% — embedded browser, agent-aware native GUI, conversation resume, JSON event bus — is exactly what cmux is <em>for</em>, and is not reachable from tmux at any wrapper thickness, nor from Warp's Block model.</strong></p>
+    </div>
+
+    <p class="pquote">tmux already <em>is</em> the orchestration loop — and a better one for raw multiplexing, input, and persistence. cmux's value is the <strong>agent-aware shell around that loop</strong>; Warp's is a polished single-operator terminal with a cloud. Pick by the problem, not the hype.<span class="src">cmux to command a fleet · tmux to script panes anywhere · Warp to supercharge your own command line</span></p>
+  </section>
+
+</div>
+
+<!-- ===== FOOTER ===== -->
+<footer>
+  <div class="wrap">
+    <div class="fq">One primary agent. A whole window of terminals. Full programmatic control.</div>
+    <div class="fm">cmux Capabilities Map · 31 prompts in <a href="../prompts/">prompts/</a> · learn more at <a href="https://cmux.com">cmux.com</a></div>
+  </div>
+</footer>
+
+<script>
+  // Render each prompt's text INSIDE its card, from the same data-prompt the button copies.
+  // Light markdown: escape HTML first, then `code`, **bold**, *italic*.
+  function renderPrompt(raw){
+    var s = raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>');
+    return s;
+  }
+  document.querySelectorAll('.copy-btn').forEach(function(btn){
+    var raw = btn.getAttribute('data-prompt') || '';
+    var main = btn.parentNode.querySelector('.prow-main');
+    if (main && !main.querySelector('.ptext')) {
+      var q = document.createElement('div');
+      q.className = 'ptext';
+      q.innerHTML = '<span class="pq">&#10095;</span>' + renderPrompt(raw);
+      main.appendChild(q);
+    }
+  });
+  document.querySelectorAll('.copy-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var text = btn.getAttribute('data-prompt') || '';
+      var done = function(){
+        var prev = 'Copy prompt';
+        btn.textContent = 'Copied \u2713';
+        btn.classList.add('copied');
+        setTimeout(function(){ btn.textContent = prev; btn.classList.remove('copied'); }, 1500);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function(){ fallback(text); done(); });
+      } else {
+        fallback(text); done();
+      }
+    });
+  });
+  function fallback(text){
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  // Flip cards: reveal each problem-row's cmux solution on demand. Toggling
+  // .flipped on the row (.flow-item) drives the card flip, the yellow->green
+  // cell color, and the center "?"->arrow together.
+  document.querySelectorAll('.flip-front').forEach(function(front){
+    front.addEventListener('click', function(){
+      var item = front.closest('.flow-item');
+      if (item){ item.classList.add('flipped'); front.setAttribute('aria-expanded','true'); }
+    });
+  });
+  document.querySelectorAll('.flip-reset').forEach(function(reset){
+    reset.addEventListener('click', function(){
+      var item = reset.closest('.flow-item');
+      if (item){
+        item.classList.remove('flipped');
+        var f = item.querySelector('.flip-front');
+        if (f) f.setAttribute('aria-expanded','false');
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,80 @@
+{
+  "_comment": "Declarative cmux layout for a full-stack Flotion team. Template — the fastcc/fastpi just recipes substitute __FEATURE__ (team/feature slug, dash-case) and __REPO__ (absolute repo path) before passing this to `cmux workspace create --layout`. Lead occupies the left half; plan/build-be/build-fe/test fill a 2x2 on the right. Each pane's command auto-launches its pi role agent on creation, so the whole team boots at once — no per-pane driving.",
+  "direction": "horizontal",
+  "split": 0.5,
+  "children": [
+    {
+      "pane": {
+        "surfaces": [
+          {
+            "type": "terminal",
+            "name": "lead",
+            "command": "pi --append-system-prompt __REPO__/.claude/agents/lead.md --model openrouter/z-ai/glm-5.2 --name lead-__FEATURE__ \"You are the LEAD of team __FEATURE__ (app: apps/flotion). Your workers are the sibling panes in this window: plan, build-be, build-fe, test. Find their surface refs by running: cmux identify --json (to get your workspace), then cmux list-pane-surfaces --workspace <ws>. Drive each worker with cmux send + send-key enter, and poll read-screen for 'FLOTION-DONE: '. Wait for the orchestrator to hand you a feature, then plan -> build -> test.\""
+          }
+        ]
+      }
+    },
+    {
+      "direction": "vertical",
+      "split": 0.5,
+      "children": [
+        {
+          "direction": "horizontal",
+          "split": 0.5,
+          "children": [
+            {
+              "pane": {
+                "surfaces": [
+                  {
+                    "type": "terminal",
+                    "name": "plan",
+                    "command": "pi --append-system-prompt __REPO__/.claude/agents/plan.md --model openrouter/z-ai/glm-5.2 --name plan-__FEATURE__ \"You are the plan worker on team __FEATURE__. Reply with one line: ready: plan  then wait for the lead to assign work.\""
+                  }
+                ]
+              }
+            },
+            {
+              "pane": {
+                "surfaces": [
+                  {
+                    "type": "terminal",
+                    "name": "build-be",
+                    "command": "pi --append-system-prompt __REPO__/.claude/agents/build-be.md --model openrouter/minimax/minimax-m3 --name build-be-__FEATURE__ \"You are the build-be worker on team __FEATURE__. Reply with one line: ready: build-be  then wait for the lead to assign work.\""
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "direction": "horizontal",
+          "split": 0.5,
+          "children": [
+            {
+              "pane": {
+                "surfaces": [
+                  {
+                    "type": "terminal",
+                    "name": "build-fe",
+                    "command": "pi --append-system-prompt __REPO__/.claude/agents/build-fe.md --model openrouter/minimax/minimax-m3 --name build-fe-__FEATURE__ \"You are the build-fe worker on team __FEATURE__. Reply with one line: ready: build-fe  then wait for the lead to assign work.\""
+                  }
+                ]
+              }
+            },
+            {
+              "pane": {
+                "surfaces": [
+                  {
+                    "type": "terminal",
+                    "name": "test",
+                    "command": "pi --append-system-prompt __REPO__/.claude/agents/test.md --model openrouter/minimax/minimax-m3 --name test-__FEATURE__ \"You are the test worker on team __FEATURE__. Reply with one line: ready: test  then wait for the lead to assign work.\""
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

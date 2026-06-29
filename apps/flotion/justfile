@@ -1,0 +1,37 @@
+# Flotion dev tasks — run `just` to list, `just <recipe>` to run.
+# The agent team typically runs `just be` in one pane and `just fe` in another.
+
+set shell := ["bash", "-cu"]
+
+_default:
+    @just --list
+
+# Install backend (uv) + frontend (npm) deps
+install:
+    cd backend && uv sync
+    cd frontend && npm install
+
+# Run the FastAPI backend on :8000 (auto-reload)
+be:
+    cd backend && uv run uvicorn main:app --reload --port 8000
+
+# Run the Vite dev server on :5173 (proxies /api -> :8000)
+fe:
+    cd frontend && npm run dev
+
+# Run backend + frontend together; Ctrl-C stops both
+dev:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    (cd backend && uv run uvicorn main:app --reload --port 8000) &
+    BE=$!
+    trap 'kill $BE 2>/dev/null || true' EXIT
+    cd frontend && npm run dev
+
+# Typecheck + production build of the frontend
+build:
+    cd frontend && npm run build
+
+# Reset the SQLite database (re-seeds the welcome page on next boot)
+reset-db:
+    rm -f backend/flotion.db && echo "flotion.db removed; re-seeds on next `just be`"
